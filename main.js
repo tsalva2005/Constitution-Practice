@@ -5232,193 +5232,216 @@ const cie3Questions = [
   }
 ];
 
-const quizContainer = document.querySelector(".quiz-container");
-const question = document.querySelector(".quiz-container .question");
-const options = document.querySelector(".quiz-container .options");
-const nextBtn = document.querySelector(".quiz-container .next-btn");
-const quizResult = document.querySelector(".quiz-result");
-const startBtnContainer = document.querySelector(".start-btn-container");
-const startBtn = document.querySelector(".start-btn-container .start-btn");
+ const quizContainer = document.querySelector(".quiz-container");
+        const questionEl = document.querySelector(".quiz-container .question");
+        const optionsEl = document.querySelector(".quiz-container .options");
+        const nextBtn = document.querySelector(".quiz-container .next-btn");
+        const quizResult = document.querySelector(".quiz-result");
+        const startBtnContainer = document.querySelector(".start-btn-container");
 
-let questionNumber = 0;
-let score = 0;
-const MAX_QUESTIONS = 50;
-let timerInterval;
+        let questionNumber = 0;
+        let score = 0;
+        const MAX_QUESTIONS = 50;
+        let timerInterval;
+        let quizData = [];
 
-const shuffleArray = (array) => {
-  return array.slice().sort(() => Math.random() - 0.5);
+        const shuffleArray = (array) => {
+            return array.slice().sort(() => Math.random() - 0.5);
+        };
+
+        const selectQuiz = (quizSet) => {
+            let source = [];
+            if (quizSet === 'all') {
+                // Combine all questions for the mixed quiz
+                source = [...cie1Questions, ...cie2Questions, ...cie3Questions];
+            } else {
+                source = {
+                    cie1: cie1Questions,
+                    cie2: cie2Questions,
+                    cie3: cie3Questions
+                }[quizSet];
+            }
+
+            quizData = shuffleArray(source).slice(0, MAX_QUESTIONS);
+            questionNumber = 0;
+            score = 0;
+            resetLocalStorage();
+            createQuestion();
+            quizContainer.style.display = "block";
+            startBtnContainer.style.display = "none";
+        };
+        
+        const resetLocalStorage = () => {
+            for (let i = 0; i < MAX_QUESTIONS; i++) {
+                localStorage.removeItem(`userAnswer_${i}`);
+            }
+        };
+
+        const showCorrectAnswer = () => {
+            if (!quizData[questionNumber]) return;
+            let allOptions = document.querySelectorAll(".quiz-container .option");
+            allOptions.forEach((o) => {
+                o.classList.add("disabled");
+                if (o.textContent === quizData[questionNumber].correct) {
+                    o.classList.add("correct");
+                }
+            });
+        };
+
+      const checkAnswer = (e) => {
+    clearInterval(timerInterval);
+    let userAnswer = e.target.textContent;
+    if (userAnswer === quizData[questionNumber].correct) {
+        score++;
+        e.target.classList.add("correct");
+    } else {
+        e.target.classList.add("incorrect");
+    }
+    localStorage.setItem(`userAnswer_${questionNumber}`, userAnswer);
+    showCorrectAnswer();
+
+    // Automatically redirect to the next question after 3 seconds
+    setTimeout(displayNextQuestion, 3000);
 };
 
-let quizData = [];
+        const createQuestion = () => {
+            clearInterval(timerInterval);
+            
+            const currentQuestionData = quizData[questionNumber];
+             if (!currentQuestionData || !Array.isArray(currentQuestionData.options) || currentQuestionData.options.length === 0) {
+                console.error("Invalid or missing question data at index:", questionNumber, currentQuestionData);
+                displayNextQuestion();
+                return;
+            }
 
-const selectQuiz = (quizSet) => {
-  const source = {
-    cie1: cie1Questions,
-    cie2: cie2Questions,
-    cie3: cie3Questions
-  }[quizSet];
+            let timeLeft = 120; // 2 minutes
+            const timerDisplay = document.querySelector(".quiz-container .timer");
+            timerDisplay.classList.remove("danger");
 
-  quizData = shuffleArray(source).slice(0, 50);
-  questionNumber = 0;
-  score = 0;
-  resetLocalStorage();
-  createQuestion();
-  quizContainer.style.display = "block";
-  startBtnContainer.style.display = "none";
-};
+            const updateTimerDisplay = () => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = `Time Left: ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+            };
 
-const resetLocalStorage = () => {
-  for (i = 0; i < MAX_QUESTIONS; i++) {
-    localStorage.removeItem(`userAnswer_${i}`);
-  }
-};
+            updateTimerDisplay();
 
-resetLocalStorage();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft < 10) {
+                    timerDisplay.classList.add("danger");
+                }
+                if (timeLeft < 0) {
+                    clearInterval(timerInterval);
+                    showCorrectAnswer();
+                    // Automatically move to next question after 2 seconds
+                    setTimeout(displayNextQuestion, 2000);
+                }
+            }, 1000);
 
-const checkAnswer = (e) => {
-  let userAnswer = e.target.textContent;
-  if (userAnswer === quizData[questionNumber].correct) {
-    score++;
-    e.target.classList.add("correct");
-  } else {
-    e.target.classList.add("incorrect");
-  }
+            optionsEl.innerHTML = "";
+            questionEl.innerHTML = `<span class='question-number'>${questionNumber + 1}/${MAX_QUESTIONS}</span>${currentQuestionData.question}`;
 
-  localStorage.setItem(`userAnswer_${questionNumber}`, userAnswer);
+            const shuffledOptions = shuffleArray(currentQuestionData.options);
 
-  let allOptions = document.querySelectorAll(".quiz-container .option");
-  allOptions.forEach((o) => {
-    o.classList.add("disabled");
-  });
-};
+            shuffledOptions.forEach((o) => {
+                const option = document.createElement("button");
+                option.classList.add("option");
+                option.innerHTML = o;
+                option.addEventListener("click", checkAnswer);
+                optionsEl.appendChild(option);
+            });
+        };
+        
+        const retakeQuiz = () => {
+             const lastQuizSource = quizData.length > 0 ? (
+                cie1Questions.includes(quizData[0]) ? 'cie1' :
+                cie2Questions.includes(quizData[0]) ? 'cie2' :
+                cie3Questions.includes(quizData[0]) ? 'cie3' : 'all'
+            ) : 'all';
+            
+            quizResult.style.display = "none";
+            startBtnContainer.style.display = "block";
+        };
 
-const createQuestion = () => {
-  clearInterval(timerInterval);
 
-  let secondsLeft = 9;
-  const timerDisplay = document.querySelector(".quiz-container .timer");
-  timerDisplay.classList.remove("danger");
+       const displayQuizResult = () => {
+    quizResult.style.display = "flex";
+    quizContainer.style.display = "none";
+    quizResult.innerHTML = "";
 
-  timerDisplay.textContent = `Time Left: 10 seconds`;
+    const resultHeading = document.createElement("h2");
+    resultHeading.innerHTML = `You scored ${score} out of ${MAX_QUESTIONS}.`;
+    quizResult.appendChild(resultHeading);
 
-  timerInterval = setInterval(() => {
-    timerDisplay.textContent = `Time Left: ${secondsLeft
-      .toString()
-      .padStart(2, "0")} seconds`;
-    secondsLeft--;
+    for (let i = 0; i < MAX_QUESTIONS; i++) {
+        if (!quizData[i]) continue;
+        const resultItem = document.createElement("div");
+        resultItem.classList.add("question-container");
+        const userAnswer = localStorage.getItem(`userAnswer_${i}`);
+        const correctAnswer = quizData[i].correct;
+        let marks = 0;
+        let itemClass = 'unattempted';
 
-    if (secondsLeft < 3) {
-      timerDisplay.classList.add("danger");
+        if (userAnswer === correctAnswer) {
+            marks = 1;
+            itemClass = 'correct';
+        } else if (userAnswer) {
+            itemClass = 'incorrect';
+        }
+
+        resultItem.classList.add(itemClass);
+        resultItem.innerHTML = `
+            <div class="question"><b>Question ${i + 1}:</b> ${quizData[i].question}</div>
+            <div class="user-answer"><b>Your answer:</b> ${userAnswer || "Not Answered"}</div>
+            <div class="correct-answer"><b>Correct answer:</b> ${correctAnswer}</div>
+            <div class="marks"><b>Marks:</b> ${marks}</div>
+        `;
+        quizResult.appendChild(resultItem);
     }
 
-    if (secondsLeft < 0) {
-      clearInterval(timerInterval);
-      displayNextQuestion();
-    }
-  }, 1000);
-
-  options.innerHTML = "";
-  question.innerHTML = `<span class='question-number'>${
-    questionNumber + 1
-  }/${MAX_QUESTIONS}</span>${quizData[questionNumber].question}`;
-
-  const shuffledOptions = shuffleArray(quizData[questionNumber].options);
-
-  shuffledOptions.forEach((o) => {
-    const option = document.createElement("button");
-    option.classList.add("option");
-    option.innerHTML = o;
-    option.addEventListener("click", (e) => {
-      checkAnswer(e);
-    });
-    options.appendChild(option);
-  });
+    const retakeBtn = document.createElement("button");
+    retakeBtn.classList.add("retake-btn");
+    retakeBtn.innerHTML = "Back to Home";
+    retakeBtn.addEventListener("click", retakeQuiz);
+    quizResult.appendChild(retakeBtn);
 };
+        const displayNextQuestion = () => {
+            if (questionNumber >= MAX_QUESTIONS - 1) {
+                displayQuizResult();
+                return;
+            }
+            questionNumber++;
+            createQuestion();
+        };
 
-const retakeQuiz = () => {
-  questionNumber = 0;
-  score = 0;
-  quizData = shuffleArray(quizData);
-  resetLocalStorage();
+        nextBtn.addEventListener("click", displayNextQuestion);
 
-  createQuestion();
-  quizResult.style.display = "none";
-  quizContainer.style.display = "block";
-};
+        document.querySelectorAll(".start-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const source = e.target.getAttribute("data-source");
+                selectQuiz(source);
+            });
+        });
+        
+        // Data cleaning function
+        const cleanupOptions = (questions) => {
+            questions.forEach((q) => {
+                if (q && Array.isArray(q.options)) {
+                    // Remove leading/trailing whitespace from options
+                    q.options = q.options.map(opt => String(opt).trim());
+                    const isTrueFalse = q.options.includes("True") && q.options.includes("False");
+                    if (isTrueFalse && q.options.length > 2) {
+                        q.options = ["True", "False"];
+                    }
+                }
+            });
+        };
 
-const displayQuizResult = () => {
-  quizResult.style.display = "flex";
-  quizContainer.style.display = "none";
-  quizResult.innerHTML = "";
-
-  const resultHeading = document.createElement("h2");
-  resultHeading.innerHTML = `You have scored ${score} out of ${MAX_QUESTIONS}.`;
-  quizResult.appendChild(resultHeading);
-
-  for (let i = 0; i < MAX_QUESTIONS; i++) {
-    const resultItem = document.createElement("div");
-    resultItem.classList.add("question-container");
-
-    const userAnswer = localStorage.getItem(`userAnswer_${i}`);
-    const correctAnswer = quizData[i].correct;
-
-    let answeredCorrectly = userAnswer === correctAnswer;
-
-    if (!answeredCorrectly) {
-      resultItem.classList.add("incorrect");
-    }
-
-    resultItem.innerHTML = `<div class="question">Question ${i + 1}: ${
-      quizData[i].question
-    }</div>
-    <div class="user-answer">Your answer: ${userAnswer || "Not Answered"}</div>
-    <div class="correct-answer">Correct answer: ${correctAnswer}</div>`;
-
-    quizResult.appendChild(resultItem);
-  }
-
-  const retakeBtn = document.createElement("button");
-  retakeBtn.classList.add("retake-btn");
-  retakeBtn.innerHTML = "Retake Quiz";
-  retakeBtn.addEventListener("click", retakeQuiz);
-  quizResult.appendChild(retakeBtn);
-};
-
-const displayNextQuestion = () => {
-  if (questionNumber >= MAX_QUESTIONS - 1) {
-    displayQuizResult();
-    return;
-  }
-
-  questionNumber++;
-  createQuestion();
-};
-
-nextBtn.addEventListener("click", displayNextQuestion);
-
-startBtn.addEventListener("click", () => {
-  startBtnContainer.style.display = "none";
-  quizContainer.style.display = "block";
-  createQuestion();
-});
-document.querySelectorAll(".start-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const source = btn.getAttribute("data-source");
-    selectQuiz(source);
-  });
-});
-cie1Questions.forEach((question) => {
-  const options = question.options.map(opt => opt.trim());
-  const isTrueFalse = options.includes("True") && options.includes("False");
-  if (isTrueFalse && options.length > 2) {
-    question.options = options.slice(0, 2); 
-  }
-});
-
-cie2Questions.forEach((question) => {
-  const options = question.options.map(opt => opt.trim());
-  const isTrueFalse = options.includes("True") && options.includes("False");
-  if (isTrueFalse && options.length > 2) {
-    question.options = options.slice(0, 2);
-  }
-});
+        cleanupOptions(cie1Questions);
+        cleanupOptions(cie2Questions);
+        cleanupOptions(cie3Questions);
+        
+        // Initial setup
+        resetLocalStorage();
