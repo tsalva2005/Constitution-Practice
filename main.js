@@ -5244,6 +5244,7 @@ const cie3Questions = [
         const MAX_QUESTIONS = 50;
         let timerInterval;
         let quizData = [];
+        let autoNextTimeout; // Add this line with your other variable declarations
 
         const shuffleArray = (array) => {
             return array.slice().sort(() => Math.random() - 0.5);
@@ -5300,8 +5301,8 @@ const cie3Questions = [
     localStorage.setItem(`userAnswer_${questionNumber}`, userAnswer);
     showCorrectAnswer();
 
-    // Automatically redirect to the next question after 3 seconds
-    setTimeout(displayNextQuestion, 3000);
+    // Assign the timeout to the new variable
+    autoNextTimeout = setTimeout(displayNextQuestion, 3000);
 };
 
         const createQuestion = () => {
@@ -5407,14 +5408,17 @@ const cie3Questions = [
     retakeBtn.addEventListener("click", retakeQuiz);
     quizResult.appendChild(retakeBtn);
 };
-        const displayNextQuestion = () => {
-            if (questionNumber >= MAX_QUESTIONS - 1) {
-                displayQuizResult();
-                return;
-            }
-            questionNumber++;
-            createQuestion();
-        };
+       const displayNextQuestion = () => {
+    // Clear any pending automatic advancement from the previous question
+    clearTimeout(autoNextTimeout);
+
+    if (questionNumber >= MAX_QUESTIONS - 1) {
+        displayQuizResult();
+        return;
+    }
+    questionNumber++;
+    createQuestion();
+};
 
         nextBtn.addEventListener("click", displayNextQuestion);
 
